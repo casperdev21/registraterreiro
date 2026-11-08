@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Registra Terreiro</title>
+<meta name="description" content="Diretório colaborativo de terreiros de Umbanda e de outras tradições de matriz africana: dias de gira, endereço e contato.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+<header><div class="wrap">
+  <div>
+    <h1>Registra <span>Terreiro</span></h1>
+    <p class="lede">Encontre casas de Umbanda e de outras tradições de matriz africana, veja os dias de gira e cadastre a sua.</p>
+  </div>
+  <div class="count" id="count"><b>–</b> casas cadastradas</div>
+</div></header>
+
+<main><div class="wrap grid">
+  <section aria-labelledby="h-list">
+    <h2 id="h-list">Terreiros</h2>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Buscar por nome, bairro, cidade ou dirigente" aria-label="Buscar">
+      <select id="fuf" aria-label="Estado"><option value="">Todos os estados</option></select>
+      <label class="check"><input type="checkbox" id="fopen"> Só com gira aberta ao público</label>
+    </div>
+    <div class="list" id="list"><div class="empty">Carregando terreiros…</div></div>
+  </section>
+
+  <aside aria-labelledby="h-form">
+    <h2 id="h-form">Cadastrar meu terreiro</h2>
+    <p class="hint">Os cadastros são revisados antes de aparecer na lista.</p>
+    <form id="f" novalidate>
+      <input type="text" name="website" id="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="field"><span>Nome da casa</span><input id="nome" required maxlength="120" placeholder="Ex.: Tenda Espírita Caboclo Pena Branca"></label>
+      <div class="row">
+        <label class="field"><span>Tradição</span>
+          <select id="tradicao">
+            <option>Umbanda</option><option>Umbanda Branca</option><option>Umbanda Esotérica</option>
+            <option>Umbandomblé</option><option>Omolocô</option><option>Candomblé</option>
+            <option>Quimbanda</option><option>Outra</option>
+          </select></label>
+        <label class="field"><span>Dirigente</span><input id="dirigente" maxlength="80" placeholder="Pai / Mãe de santo"></label>
+      </div>
+      <label class="field"><span>Endereço <small>(rua e número)</small></span><input id="endereco" maxlength="160"></label>
+      <label class="field"><span>Bairro</span><input id="bairro" maxlength="80"></label>
+      <div class="row city">
+        <label class="field"><span>Cidade</span><input id="cidade" required maxlength="80"></label>
+        <label class="field"><span>UF</span><select id="uf" required></select></label>
+      </div>
+      <fieldset class="field bare">
+        <span>Dias de gira</span>
+        <div class="daypick" id="dias"></div>
+      </fieldset>
+      <div class="row">
+        <label class="field"><span>Horário</span><input id="horario" maxlength="40" placeholder="Ex.: 20h"></label>
+        <label class="field"><span>Gira aberta?</span>
+          <select id="aberta"><option value="sim">Sim, ao público</option><option value="nao">Só para a corrente</option></select></label>
+      </div>
+      <label class="field"><span>Instagram ou site</span><input id="link" maxlength="160" placeholder="@seuterreiro ou https://…"></label>
+      <label class="field"><span>Telefone / WhatsApp <small>(aparece publicamente)</small></span><input id="fone" maxlength="30" inputmode="tel"></label>
+      <label class="field"><span>Sobre a casa</span><textarea id="descricao" rows="3" maxlength="600" placeholder="Linhas trabalhadas, orixá de frente, atendimentos…"></textarea></label>
+      <label class="check consent"><input type="checkbox" id="consent"> Sou responsável por esta casa ou tenho autorização dela, e concordo que estes dados sejam publicados neste site.</label>
+      <div class="actions"><button class="primary" type="submit" id="save">Enviar cadastro</button></div>
+      <div class="msg" id="msg" role="status"></div>
+    </form>
+
+    <details class="req">
+      <summary>Pedir correção ou remoção de um cadastro</summary>
+      <form id="fr" novalidate>
+        <input type="text" name="website" id="website2" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="field"><span>Nome da casa</span><input id="r-terreiro" maxlength="120"></label>
+        <label class="field"><span>O que você precisa?</span>
+          <select id="r-tipo"><option value="correcao">Corrigir informações</option><option value="remocao">Remover o cadastro</option></select></label>
+        <label class="field"><span>Detalhes</span><textarea id="r-msg" rows="3" maxlength="1000"></textarea></label>
+        <label class="field"><span>Seu contato <small>(opcional, não é publicado)</small></span><input id="r-contato" maxlength="120"></label>
+        <div class="actions"><button class="primary" type="submit" id="r-send">Enviar pedido</button></div>
+        <div class="msg" id="r-msgout" role="status"></div>
+      </form>
+    </details>
+  </aside>
+</div></main>
+<footer><div class="wrap">Registra Terreiro · diretório colaborativo</div></footer>
+
+<script>
+const UFS="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+const DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const $=id=>document.getElementById(id);
+$("uf").innerHTML='<option value="">–</option>'+UFS.map(u=>`<option>${u}</option>`).join("");
+$("dias").innerHTML=DIAS.map((d,i)=>`<label class="chip"><input type="checkbox" id="d${i}" value="${i}"><span>${d}</span></label>`).join("");
+
+let rows=[];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+function linkHtml(v){
+  v=String(v||"").trim(); if(!v) return "";
+  if(/^@[\w.]+$/.test(v)) return `<a href="https://instagram.com/${esc(v.slice(1))}" target="_blank" rel="noopener nofollow">${esc(v)}</a>`;
+  if(/^https?:\/\/[^\s]+$/i.test(v)) return `<a href="${esc(v)}" target="_blank" rel="noopener nofollow">${esc(v.replace(/^https?:\/\//,""))}</a>`;
+  return esc(v);
+}
+function render(){
+  const q=norm($("q").value), uf=$("fuf").value, open=$("fopen").checked;
+  const ufs=[...new Set(rows.map(r=>r.uf).filter(Boolean))].sort();
+  $("fuf").innerHTML='<option value="">Todos os estados</option>'+ufs.map(u=>`<option${u===uf?" selected":""}>${u}</option>`).join("");
+  $("count").innerHTML=`<b>${rows.length}</b> ${rows.length===1?"casa cadastrada":"casas cadastradas"}`;
+  const vis=rows.filter(r=>(!uf||r.uf===uf)&&(!open||r.aberta)&&(!q||norm([r.nome,r.bairro,r.cidade,r.dirigente,r.tradicao].join(" ")).includes(q)));
+  const list=$("list");
+  if(!rows.length){list.innerHTML='<div class="empty">Nenhum terreiro publicado ainda. Use o formulário para cadastrar a primeira casa.</div>';return}
+  if(!vis.length){list.innerHTML='<div class="empty">Nenhuma casa encontrada com esses filtros.</div>';return}
+  list.innerHTML=vis.map(r=>{
+    const dias=r.dias||[];
+    const local=[r.endereco,r.bairro,[r.cidade,r.uf].filter(Boolean).join(" – ")].filter(Boolean).map(esc).join(", ");
+    const contato=[linkHtml(r.link),r.fone?esc(r.fone):""].filter(Boolean).join(" · ");
+    return `<article class="card">
+      <div class="card-top"><h3>${esc(r.nome)}</h3><span class="tag">${esc(r.tradicao)}</span></div>
+      ${r.dirigente?`<div class="meta">Dirigente: ${esc(r.dirigente)}</div>`:""}
+      <div class="meta">${local}</div>
+      <div class="card-line">
+        <div class="days" aria-label="Dias de gira">${DIAS.map((d,i)=>`<span class="day${dias.includes(i)?" on":""}">${d}</span>`).join("")}</div>
+        ${r.horario?`<span class="meta">${esc(r.horario)}</span>`:""}
+        ${r.aberta?'<span class="open">Gira aberta</span>':""}
+      </div>
+      ${r.descricao?`<p class="desc">${esc(r.descricao)}</p>`:""}
+      ${contato?`<div class="contact">${contato}</div>`:""}
+    </article>`}).join("");
+}
+["q","fopen"].forEach(id=>$(id).addEventListener("input",render));
+$("fuf").addEventListener("change",render);
+
+async function load(){
+  try{
+    const r=await fetch("/api/terreiros");
+    if(r.status===503){$("list").innerHTML='<div class="empty">O site está sendo configurado. Volte em breve.</div>';return}
+    if(!r.ok)throw 0;
+    rows=await r.json();render();
+  }catch{$("list").innerHTML='<div class="empty">Não foi possível carregar a lista agora. Recarregue a página em instantes.</div>'}
+}
+load();
+
+function msg(el,t,err){el.textContent=t;el.className="msg"+(err?" err":" ok")}
+$("f").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const d={website:$("website").value};
+  ["nome","tradicao","dirigente","endereco","bairro","cidade","uf","horario","link","fone","descricao"].forEach(k=>d[k]=$(k).value.trim());
+  d.aberta=$("aberta").value==="sim";
+  d.dias=DIAS.map((_,i)=>i).filter(i=>$("d"+i).checked);
+  d.consentimento=$("consent").checked;
+  if(!d.nome){msg($("msg"),"Informe o nome da casa.",1);$("nome").focus();return}
+  if(!d.cidade||!d.uf){msg($("msg"),"Informe cidade e UF.",1);return}
+  if(!d.consentimento){msg($("msg"),"Marque a autorização para publicar os dados.",1);return}
+  $("save").disabled=true;msg($("msg"),"Enviando…");
+  try{
+    const r=await fetch("/api/terreiros",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.erro||"Não foi possível enviar.");
+    $("f").reset();msg($("msg"),"Cadastro recebido. Ele aparece na lista assim que for aprovado.");
+  }catch(err){msg($("msg"),err.message||"Não foi possível enviar. Tente de novo.",1)}
+  finally{$("save").disabled=false}
+});
+$("fr").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const d={website:$("website2").value,terreiro:$("r-terreiro").value.trim(),tipo:$("r-tipo").value,mensagem:$("r-msg").value.trim(),contato:$("r-contato").value.trim()};
+  if(!d.terreiro||!d.mensagem){msg($("r-msgout"),"Informe o nome da casa e os detalhes do pedido.",1);return}
+  $("r-send").disabled=true;
+  try{
+    const r=await fetch("/api/solicitacoes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.erro||"Não foi possível enviar.");
+    $("fr").reset();msg($("r-msgout"),"Pedido recebido. Vamos analisar em breve.");
+  }catch(err){msg($("r-msgout"),err.message,1)}
+  finally{$("r-send").disabled=false}
+});
+</script>
+</body>
+</html>

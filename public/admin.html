@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Moderação · Registra Terreiro</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+<header><div class="wrap">
+  <div><h1>Moderação</h1><p class="lede">Aprove os cadastros e responda aos pedidos de correção ou remoção.</p></div>
+  <a href="/">Ver o site</a>
+</div></header>
+<main><div class="wrap" style="padding-block:24px 48px">
+  <form id="login" style="max-width:360px">
+    <label class="field"><span>Senha de administração</span><input type="password" id="senha" autocomplete="current-password"></label>
+    <div class="actions"><button class="primary" type="submit">Entrar</button></div>
+    <div class="msg" id="lmsg" role="status"></div>
+  </form>
+  <div id="painel" hidden>
+    <h2>Pedidos de correção e remoção</h2>
+    <div class="list" id="sol"></div>
+    <h2 style="margin-top:28px">Cadastros</h2>
+    <div class="list" id="ter"></div>
+  </div>
+</div></main>
+<script>
+const $=id=>document.getElementById(id);
+const DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let senha="";
+try{senha=sessionStorage.getItem("rt-senha")||""}catch{}
+async function api(method,body){
+  const r=await fetch("/api/admin",{method,headers:{"Content-Type":"application/json","x-admin-senha":senha},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw Object.assign(new Error(j.erro||"Erro"),{status:r.status});
+  return j;
+}
+async function load(){
+  try{
+    const {terreiros,solicitacoes}=await api("GET");
+    try{sessionStorage.setItem("rt-senha",senha)}catch{}
+    $("login").hidden=true;$("painel").hidden=false;
+    $("sol").innerHTML=solicitacoes.length?solicitacoes.map(s=>`<article class="card">
+      <div class="card-top"><h3>${esc(s.terreiro)}</h3><span class="tag">${s.tipo==="remocao"?"Remoção":"Correção"}</span></div>
+      <p class="desc">${esc(s.mensagem)}</p>
+      ${s.contato?`<div class="meta">Contato: ${esc(s.contato)}</div>`:""}
+      <div class="meta">${new Date(s.criado_em).toLocaleString("pt-BR")}</div>
+      <div class="actions"><button data-a="resolver" data-id="${s.id}">Marcar como resolvido</button></div>
+    </article>`).join(""):'<div class="empty">Nenhum pedido em aberto.</div>';
+    $("ter").innerHTML=terreiros.length?terreiros.map(t=>`<article class="card">
+      <div class="card-top"><h3>${esc(t.nome)}</h3><span class="status ${t.status}">${t.status}</span></div>
+      <div class="meta">${esc(t.tradicao)}${t.dirigente?" · "+esc(t.dirigente):""}</div>
+      <div class="meta">${[t.endereco,t.bairro,t.cidade+" – "+t.uf].filter(Boolean).map(esc).join(", ")}</div>
+      <div class="meta">Gira: ${(t.dias||[]).map(i=>DIAS[i]).join(", ")||"—"} ${esc(t.horario)} · ${t.aberta?"aberta":"fechada"}</div>
+      ${t.descricao?`<p class="desc">${esc(t.descricao)}</p>`:""}
+      <div class="meta">${esc(t.link)} ${esc(t.fone)}</div>
+      <div class="meta">Enviado em ${new Date(t.criado_em).toLocaleString("pt-BR")}</div>
+      <div class="actions">
+        ${t.status==="pendente"?`<button class="primary" data-a="aprovar" data-id="${t.id}">Aprovar</button>`:`<button data-a="ocultar" data-id="${t.id}">Ocultar</button>`}
+        <button class="danger" data-a="excluir" data-id="${t.id}">Excluir</button>
+      </div>
+    </article>`).join(""):'<div class="empty">Nenhum cadastro recebido ainda.</div>';
+  }catch(e){
+    $("login").hidden=false;$("painel").hidden=true;
+    if(senha)$("lmsg").textContent=e.message,$("lmsg").className="msg err";
+  }
+}
+$("login").addEventListener("submit",e=>{e.preventDefault();senha=$("senha").value;load()});
+let pendingDelete=null;
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button[data-a]");if(!b)return;
+  if(b.dataset.a==="excluir"&&pendingDelete!==b){pendingDelete=b;b.textContent="Confirmar exclusão";return}
+  b.disabled=true;
+  try{await api("POST",{acao:b.dataset.a,id:b.dataset.id});await load()}catch(err){b.disabled=false;b.textContent=err.message}
+});
+if(senha)load();
+</script>
+</body>
+</html>
