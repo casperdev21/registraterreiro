@@ -5,24 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Moderação · Registra Terreiro</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/estilo.css">
 </head>
 <body>
-<header><div class="wrap">
+<header class="top admin-head"><div class="wrap">
   <div><h1>Moderação</h1><p class="lede">Aprove os cadastros e responda aos pedidos de correção ou remoção.</p></div>
   <a href="/">Ver o site</a>
 </div></header>
 <main><div class="wrap" style="padding-block:24px 48px">
-  <form id="login" style="max-width:360px">
+  <form id="login" style="max-width:380px">
     <label class="field"><span>Senha de administração</span><input type="password" id="senha" autocomplete="current-password"></label>
-    <div class="actions"><button class="primary" type="submit">Entrar</button></div>
+    <div class="actions"><button class="btn btn-brand" type="submit">Entrar</button></div>
     <div class="msg" id="lmsg" role="status"></div>
   </form>
-  <div id="painel" hidden>
+  <div id="painel" hidden style="display:grid;gap:14px">
     <h2>Pedidos de correção e remoção</h2>
     <div class="list" id="sol"></div>
-    <h2 style="margin-top:28px">Cadastros</h2>
+    <h2 style="margin-top:32px">Cadastros</h2>
     <div class="list" id="ter"></div>
   </div>
 </div></main>
@@ -59,7 +60,7 @@ async function load(){
       <div class="meta">${esc(t.link)} ${esc(t.fone)}</div>
       <div class="meta">Enviado em ${new Date(t.criado_em).toLocaleString("pt-BR")}</div>
       <div class="actions">
-        ${t.status==="pendente"?`<button class="primary" data-a="aprovar" data-id="${t.id}">Aprovar</button>`:`<button data-a="ocultar" data-id="${t.id}">Ocultar</button>`}
+        ${t.status==="pendente"?`<button class="btn btn-brand" data-a="aprovar" data-id="${t.id}">Aprovar</button>`:`<button data-a="ocultar" data-id="${t.id}">Ocultar</button>`}
         <button class="danger" data-a="excluir" data-id="${t.id}">Excluir</button>
       </div>
     </article>`).join(""):'<div class="empty">Nenhum cadastro recebido ainda.</div>';
