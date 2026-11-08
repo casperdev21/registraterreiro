@@ -1,4 +1,4 @@
-import { getSql, ensureSchema, send, readBody, isAdmin } from "./_db.js";
+import { getSql, closeSql, ensureSchema, send, readBody, isAdmin } from "./_db.js";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -29,5 +29,7 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error(e);
     return send(res, 500, { erro: "Erro interno." });
+  } finally {
+    await closeSql(db);
   }
 }

@@ -1,4 +1,4 @@
-import { getSql, ensureSchema, send, readBody, clip } from "./_db.js";
+import { getSql, closeSql, ensureSchema, send, readBody, clip } from "./_db.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return send(res, 405, { erro: "Método não permitido." }); }
@@ -22,5 +22,7 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error(e);
     return send(res, 500, { erro: "Erro interno. Tente novamente em instantes." });
+  } finally {
+    await closeSql(db);
   }
 }

@@ -1,4 +1,4 @@
-import { getSql, ensureSchema, send, readBody, UFS, TRADICOES, clip } from "./_db.js";
+import { getSql, closeSql, ensureSchema, send, readBody, UFS, TRADICOES, clip } from "./_db.js";
 
 export default async function handler(req, res) {
   const db = getSql();
@@ -10,7 +10,10 @@ export default async function handler(req, res) {
       const rows = await db`
         select id, nome, tradicao, dirigente, endereco, bairro, cidade, uf, dias, horario, aberta, link, fone, descricao
         from registra.terreiros where status = 'aprovado' order by nome`;
-      res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+      if (!Array.isArray(rows) || rows.some((r) => typeof r.nome !== "string")) {
+        throw new Error("Resposta inesperada do banco na listagem de terreiros");
+      }
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
       res.status(200).setHeader("Content-Type", "application/json; charset=utf-8");
       return res.end(JSON.stringify(rows));
     }
@@ -47,5 +50,7 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error(e);
     return send(res, 500, { erro: "Erro interno. Tente novamente em instantes." });
+  } finally {
+    await closeSql(db);
   }
 }

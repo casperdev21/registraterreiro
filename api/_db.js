@@ -1,14 +1,25 @@
 import postgres from "postgres";
 import crypto from "node:crypto";
 
-let sql = null;
 let ready = null;
 
+// Uma conexão nova por requisição. Compartilhar uma conexão entre requisições
+// simultâneas, passando pelo pooler do Supabase, misturava os resultados das consultas.
 export function getSql() {
   const url = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING;
   if (!url) return null;
-  if (!sql) sql = postgres(url, { prepare: false, max: 1, ssl: "require" });
-  return sql;
+  return postgres(url, {
+    prepare: false,
+    max: 1,
+    idle_timeout: 5,
+    connect_timeout: 10,
+    onnotice: () => {},
+    ssl: process.env.PGSSL === "off" ? false : "require",
+  });
+}
+
+export async function closeSql(db) {
+  if (db) { try { await db.end({ timeout: 2 }); } catch {} }
 }
 
 // Tabelas ficam no schema "registra", que não é exposto pela API pública do Supabase.
