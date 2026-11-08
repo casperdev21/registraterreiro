@@ -28,7 +28,7 @@
 .layer[aria-pressed="true"]{background:var(--deep);color:#fff}
 .layer .n{font-size:13px;font-variant-numeric:tabular-nums;opacity:.8}
 .map-wrap{flex:999 1 560px;min-width:0;position:relative}
-#map{height:min(72vh,680px);min-height:420px;border-radius:18px;border:1px solid var(--line);background:#EEF0E6;z-index:0}
+#map{height:min(72vh,680px);min-height:420px;border-radius:18px;border:1px solid var(--line);background:#E9EDE3;z-index:0}
 .crumb{position:absolute;top:12px;left:56px;z-index:500;display:flex;gap:8px;align-items:center}
 .crumb button{background:var(--surface);border:1px solid var(--line2);box-shadow:0 2px 8px rgba(27,34,25,.12);font-size:14px;padding:8px 12px}
 .crumb span{background:var(--deep);color:#fff;font-weight:600;font-size:14px;padding:8px 12px;border-radius:10px}
@@ -141,7 +141,9 @@ const fmt=n=>n.toLocaleString("pt-BR");
 
 let rows=[], layer="total", estado=null, geoLayer=null, cacheUF={};
 const map=L.map("map",{zoomSnap:.25,minZoom:3,maxZoom:12,scrollWheelZoom:false}).setView([-15.5,-53],4);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · Malhas: IBGE',subdomains:"abcd",maxZoom:19}).addTo(map);
+// Sem mapa de fundo: só as malhas do IBGE, que são abertas e não exigem chave.
+map.attributionControl.setPrefix(false);
+map.attributionControl.addAttribution('Malhas territoriais: <a href="https://www.ibge.gov.br/" target="_blank" rel="noopener">IBGE</a>');
 map.on("focus",()=>map.scrollWheelZoom.enable());map.on("blur",()=>map.scrollWheelZoom.disable());
 
 function filtradas(){return rows.filter(LAYERS[layer].f)}
