@@ -91,10 +91,11 @@
         <h2 id="h-cad">Sua casa ainda não está aqui?</h2>
         <p>O cadastro é gratuito e leva uns 2 minutos.</p>
         <ol>
-          <li>Preencha os dados da casa.</li>
-          <li>A gente revisa o cadastro.</li>
-          <li>A casa aparece na lista e na agenda de giras.</li>
+          <li>Preencha os dados da casa e receba um número de protocolo.</li>
+          <li>A gente revisa o cadastro e dá retorno pelo contato que você informar.</li>
+          <li>Aprovada, a casa aparece na lista, no mapa e na agenda de giras.</li>
         </ol>
+        <p>Já enviou? <a href="/acompanhar.html">Acompanhe pelo protocolo</a>.</p>
       </div>
       <div class="form-card">
         <form id="f" novalidate>
@@ -127,7 +128,8 @@
           <label class="field"><span>Instagram ou site</span><input id="link" maxlength="160" placeholder="@suacasa ou https://…"></label>
           <label class="field"><span>Telefone ou WhatsApp <small>(aparece publicamente)</small></span><input id="fone" maxlength="30" inputmode="tel"></label>
           <label class="field"><span>Sobre a casa</span><textarea id="descricao" rows="3" maxlength="600" placeholder="Linhas trabalhadas, atendimentos, o que a pessoa precisa saber antes de ir…"></textarea></label>
-          <label class="check"><input type="checkbox" id="consent"> Sou responsável por esta casa ou tenho autorização dela, e concordo que estes dados sejam publicados neste site.</label>
+          <label class="field"><span>Seu e-mail ou WhatsApp <small>(não é publicado; usamos só para dar retorno sobre o cadastro)</small></span><input id="contato_responsavel" required maxlength="120" autocomplete="email" placeholder="voce@email.com ou (21) 99999-9999"></label>
+          <label class="check"><input type="checkbox" id="consent"> Sou responsável por esta casa ou tenho autorização dela, e concordo que os dados da casa sejam publicados neste site.</label>
           <div class="actions"><button class="btn btn-brand" type="submit" id="save">Enviar cadastro</button></div>
           <p class="msg" id="msg" role="status"></p>
         </form>
@@ -241,19 +243,24 @@ function msg(el,t,err){el.textContent=t;el.className="msg"+(err?" err":" ok")}
 $("f").addEventListener("submit",async e=>{
   e.preventDefault();
   const d={website:$("website").value};
-  ["nome","tradicao","dirigente","endereco","bairro","cidade","uf","horario","link","fone","descricao"].forEach(k=>d[k]=$(k).value.trim());
+  ["nome","tradicao","dirigente","endereco","bairro","cidade","uf","horario","link","fone","descricao","contato_responsavel"].forEach(k=>d[k]=$(k).value.trim());
   d.aberta=$("aberta").value==="sim";
   d.dias=DIAS.map((_,i)=>i).filter(i=>$("d"+i).checked);
   d.consentimento=$("consent").checked;
   if(!d.nome){msg($("msg"),"Informe o nome da casa.",1);$("nome").focus();return}
   if(!d.cidade||!d.uf){msg($("msg"),"Informe cidade e UF.",1);return}
+  if(d.contato_responsavel.length<6){msg($("msg"),"Informe um e-mail ou WhatsApp para darmos retorno sobre o cadastro.",1);$("contato_responsavel").focus();return}
   if(!d.consentimento){msg($("msg"),"Marque a autorização para publicar os dados.",1);return}
   $("save").disabled=true;msg($("msg"),"Enviando…");$("msg").className="msg";
   try{
     const r=await fetch("/api/terreiros",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.erro||"Não foi possível enviar.");
-    $("f").reset();msg($("msg"),"Cadastro recebido! A casa aparece na lista assim que for aprovada.");
+    $("f").reset();
+    $("msg").className="msg ok";
+    $("msg").innerHTML=j.protocolo
+      ?`Cadastro recebido! Seu protocolo é <strong style="font-size:17px;letter-spacing:.04em">${esc(j.protocolo)}</strong>. Guarde esse número para <a href="/acompanhar.html?p=${encodeURIComponent(j.protocolo)}">acompanhar a análise</a>. Também vamos dar retorno pelo contato que você informou.`
+      :"Cadastro recebido! A casa aparece na lista assim que for aprovada.";
   }catch(err){msg($("msg"),err.message||"Não foi possível enviar. Tente de novo.",1)}
   finally{$("save").disabled=false}
 });

@@ -8,10 +8,22 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/estilo.css">
+<style>
+.status.recusado{background:#F8E3E1;color:var(--danger)}
+.priv{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 16px}
+.priv b{font-weight:700}
+.recusa{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.motivos{display:flex;flex-wrap:wrap;gap:6px}
+.motivos button{font-size:13px;padding:6px 10px;border-radius:999px}
+.retorno{display:grid;gap:10px;border:1px dashed var(--line2);border-radius:12px;padding:12px}
+.retorno textarea{font-size:14px}
+.motivo-box{background:#FBF1EF;border-radius:10px;padding:10px 12px;margin:0;font-size:14px;white-space:pre-line}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+</style>
 </head>
 <body>
 <header class="top admin-head"><div class="wrap">
-  <div><h1>Moderação</h1><p class="lede">Aprove os cadastros e responda aos pedidos de correção ou remoção.</p></div>
+  <div><h1>Moderação</h1><p class="lede">Aprove ou recuse os cadastros, dê retorno a quem cadastrou e responda aos pedidos de correção ou remoção.</p></div>
   <a href="/">Ver o site</a>
 </div></header>
 <main><div class="wrap" style="padding-block:24px 48px">
@@ -21,17 +33,26 @@
     <div class="msg" id="lmsg" role="status"></div>
   </form>
   <div id="painel" hidden style="display:grid;gap:14px">
-    <h2>Pedidos de correção e remoção</h2>
-    <div class="list" id="sol"></div>
-    <h2 style="margin-top:32px">Cadastros</h2>
+    <h2>Cadastros</h2>
+    <div class="tabs" role="group" aria-label="Filtrar cadastros">
+      <button type="button" class="chip-btn" data-t="pendente" aria-pressed="true">Em análise</button>
+      <button type="button" class="chip-btn" data-t="aprovado" aria-pressed="false">Aprovados</button>
+      <button type="button" class="chip-btn" data-t="recusado" aria-pressed="false">Não aprovados</button>
+      <button type="button" class="chip-btn" data-t="todos" aria-pressed="false">Todos</button>
+    </div>
     <div class="list" id="ter"></div>
+    <h2 style="margin-top:32px">Pedidos de correção e remoção</h2>
+    <div class="list" id="sol"></div>
   </div>
 </div></main>
 <script>
 const $=id=>document.getElementById(id);
 const DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const ROTULO={pendente:"Em análise",aprovado:"Aprovado",recusado:"Não aprovado"};
+const MOTIVOS=["Faltam informações para identificar a casa (endereço ou bairro).","Não conseguimos confirmar que a casa existe ou que o cadastro foi autorizado por ela.","Essa casa já está cadastrada no site.","O texto tem conteúdo que não está de acordo com as regras do site.","Os dados de contato da casa parecem incorretos."];
+const SITE=location.origin;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let senha="";
+let senha="", dados={terreiros:[],solicitacoes:[]}, aba="pendente", abrirRecusa=null, mostrarRetorno=new Set();
 try{senha=sessionStorage.getItem("rt-senha")||""}catch{}
 async function api(method,body){
   const r=await fetch("/api/admin",{method,headers:{"Content-Type":"application/json","x-admin-senha":senha},body:body?JSON.stringify(body):undefined});
@@ -39,43 +60,101 @@ async function api(method,body){
   if(!r.ok)throw Object.assign(new Error(j.erro||"Erro"),{status:r.status});
   return j;
 }
+function mensagem(t){
+  const p=t.protocolo?` (protocolo ${t.protocolo})`:"";
+  if(t.status==="aprovado")return `Olá! Aqui é do Registra Terreiro. O cadastro da casa "${t.nome}"${p} foi aprovado e já aparece no site: ${SITE}\n\nObrigado por fazer parte. Axé!`;
+  return `Olá! Aqui é do Registra Terreiro. Analisamos o cadastro da casa "${t.nome}"${p} e ele não foi aprovado desta vez.\n\nMotivo: ${t.motivo||""}\n\nSe der para ajustar, é só enviar um novo cadastro em ${SITE}/#cadastrar${t.protocolo?`\nVocê também pode consultar a análise em ${SITE}/acompanhar.html?p=${t.protocolo}`:""}\n\nAxé!`;
+}
+function canais(contato,msg){
+  const c=String(contato||"").trim(), out=[];
+  if(/@/.test(c))out.push(`<a class="btn btn-brand" data-canal="mail" data-dest="${esc(c)}" href="mailto:${encodeURIComponent(c)}?subject=${encodeURIComponent("Cadastro no Registra Terreiro")}&body=${encodeURIComponent(msg)}">Enviar por e-mail</a>`);
+  let dig=c.replace(/\D/g,"");
+  if(dig.length>=10&&dig.length<=13){if(dig.length<=11)dig="55"+dig;out.push(`<a class="btn btn-brand" data-canal="wa" data-dest="${dig}" target="_blank" rel="noopener" href="https://wa.me/${dig}?text=${encodeURIComponent(msg)}">Enviar pelo WhatsApp</a>`)}
+  return out.join("");
+}
+function card(t){
+  const decidido=t.status!=="pendente";
+  const retorno=decidido&&(mostrarRetorno.has(t.id)||t.status==="recusado");
+  const msg=decidido?mensagem(t):"";
+  return `<article class="card" data-card="${t.id}">
+    <div class="card-top"><h3>${esc(t.nome)}</h3><span class="status ${t.status}">${ROTULO[t.status]||esc(t.status)}</span></div>
+    <div class="meta">${esc(t.tradicao)}${t.dirigente?" · "+esc(t.dirigente):""}</div>
+    <div class="meta">${[t.endereco,t.bairro,(t.cidade||"")+" – "+(t.uf||"")].filter(Boolean).map(esc).join(", ")}</div>
+    <div class="meta">Gira: ${(t.dias||[]).map(i=>DIAS[i]).join(", ")||"—"} ${esc(t.horario)} · ${t.aberta?"aberta ao público":"só para a corrente"}</div>
+    ${t.descricao?`<p class="desc">${esc(t.descricao)}</p>`:""}
+    ${(t.link||t.fone)?`<div class="meta">Público: ${esc(t.link)} ${esc(t.fone)}</div>`:""}
+    <div class="priv"><span><b>Contato do responsável:</b> ${t.contato_responsavel?esc(t.contato_responsavel):"não informado (cadastro antigo)"}</span>${t.protocolo?`<span><b>Protocolo:</b> ${esc(t.protocolo)}</span>`:""}<span>Enviado em ${new Date(t.criado_em).toLocaleString("pt-BR")}</span></div>
+    ${t.status==="recusado"&&t.motivo?`<p class="motivo-box"><b>Motivo da recusa:</b> ${esc(t.motivo)}</p>`:""}
+    <div class="actions">
+      ${t.status!=="aprovado"?`<button class="btn btn-brand" data-a="aprovar" data-id="${t.id}">Aprovar</button>`:`<button data-a="ocultar" data-id="${t.id}">Voltar para análise</button>`}
+      ${t.status!=="recusado"?`<button class="danger" data-a="abrir-recusa" data-id="${t.id}">Recusar</button>`:""}
+      ${decidido&&!retorno?`<button data-a="ver-retorno" data-id="${t.id}">Dar retorno</button>`:""}
+      <button class="danger" data-a="excluir" data-id="${t.id}">Excluir</button>
+    </div>
+    ${abrirRecusa===t.id?`<div class="recusa">
+      <label class="field"><span>Motivo da recusa <small>(o cadastrante vai ver este texto)</small></span><textarea id="motivo-${t.id}" rows="3" maxlength="600"></textarea></label>
+      <div class="motivos">${MOTIVOS.map((m,i)=>`<button type="button" data-a="motivo" data-id="${t.id}" data-m="${i}">${esc(m.split(" (")[0].split(".")[0])}</button>`).join("")}</div>
+      <div class="actions"><button class="btn btn-brand" data-a="recusar" data-id="${t.id}">Recusar e registrar motivo</button><button data-a="fechar-recusa" data-id="${t.id}">Cancelar</button></div>
+    </div>`:""}
+    ${retorno?`<div class="retorno">
+      <strong>Retorno para o cadastrante</strong>
+      <textarea id="ret-${t.id}" rows="6">${esc(msg)}</textarea>
+      <div class="actions">${canais(t.contato_responsavel,msg)}<button data-a="copiar" data-id="${t.id}">Copiar mensagem</button></div>
+      ${!t.contato_responsavel?`<p class="msg">Este cadastro não tem contato do responsável. ${t.protocolo?"A pessoa pode ver o motivo consultando o protocolo.":""}</p>`:`<p class="msg">Você pode editar a mensagem antes de enviar. ${t.protocolo?"O motivo também aparece para a pessoa na página de acompanhamento.":""}</p>`}
+    </div>`:""}
+  </article>`;
+}
+function render(){
+  const lista=dados.terreiros.filter(t=>aba==="todos"||t.status===aba);
+  $("ter").innerHTML=lista.length?lista.map(card).join(""):`<div class="empty">Nenhum cadastro ${aba==="todos"?"recebido ainda":"nesta situação"}.</div>`;
+  document.querySelectorAll("[data-t]").forEach(b=>{const n=dados.terreiros.filter(t=>b.dataset.t==="todos"||t.status===b.dataset.t).length;b.textContent=b.textContent.replace(/ \(\d+\)$/,"")+` (${n})`;b.setAttribute("aria-pressed",String(b.dataset.t===aba))});
+  $("sol").innerHTML=dados.solicitacoes.length?dados.solicitacoes.map(s=>`<article class="card">
+    <div class="card-top"><h3>${esc(s.terreiro)}</h3><span class="tag">${s.tipo==="remocao"?"Remoção":"Correção"}</span></div>
+    <p class="desc">${esc(s.mensagem)}</p>
+    ${s.contato?`<div class="meta">Contato: ${esc(s.contato)}</div>`:""}
+    <div class="meta">${new Date(s.criado_em).toLocaleString("pt-BR")}</div>
+    <div class="actions"><button data-a="resolver" data-id="${s.id}">Marcar como resolvido</button></div>
+  </article>`).join(""):'<div class="empty">Nenhum pedido em aberto.</div>';
+}
 async function load(){
   try{
-    const {terreiros,solicitacoes}=await api("GET");
+    dados=await api("GET");
     try{sessionStorage.setItem("rt-senha",senha)}catch{}
-    $("login").hidden=true;$("painel").hidden=false;
-    $("sol").innerHTML=solicitacoes.length?solicitacoes.map(s=>`<article class="card">
-      <div class="card-top"><h3>${esc(s.terreiro)}</h3><span class="tag">${s.tipo==="remocao"?"Remoção":"Correção"}</span></div>
-      <p class="desc">${esc(s.mensagem)}</p>
-      ${s.contato?`<div class="meta">Contato: ${esc(s.contato)}</div>`:""}
-      <div class="meta">${new Date(s.criado_em).toLocaleString("pt-BR")}</div>
-      <div class="actions"><button data-a="resolver" data-id="${s.id}">Marcar como resolvido</button></div>
-    </article>`).join(""):'<div class="empty">Nenhum pedido em aberto.</div>';
-    $("ter").innerHTML=terreiros.length?terreiros.map(t=>`<article class="card">
-      <div class="card-top"><h3>${esc(t.nome)}</h3><span class="status ${t.status}">${t.status}</span></div>
-      <div class="meta">${esc(t.tradicao)}${t.dirigente?" · "+esc(t.dirigente):""}</div>
-      <div class="meta">${[t.endereco,t.bairro,t.cidade+" – "+t.uf].filter(Boolean).map(esc).join(", ")}</div>
-      <div class="meta">Gira: ${(t.dias||[]).map(i=>DIAS[i]).join(", ")||"—"} ${esc(t.horario)} · ${t.aberta?"aberta":"fechada"}</div>
-      ${t.descricao?`<p class="desc">${esc(t.descricao)}</p>`:""}
-      <div class="meta">${esc(t.link)} ${esc(t.fone)}</div>
-      <div class="meta">Enviado em ${new Date(t.criado_em).toLocaleString("pt-BR")}</div>
-      <div class="actions">
-        ${t.status==="pendente"?`<button class="btn btn-brand" data-a="aprovar" data-id="${t.id}">Aprovar</button>`:`<button data-a="ocultar" data-id="${t.id}">Ocultar</button>`}
-        <button class="danger" data-a="excluir" data-id="${t.id}">Excluir</button>
-      </div>
-    </article>`).join(""):'<div class="empty">Nenhum cadastro recebido ainda.</div>';
+    $("login").hidden=true;$("painel").hidden=false;render();
   }catch(e){
     $("login").hidden=false;$("painel").hidden=true;
     if(senha)$("lmsg").textContent=e.message,$("lmsg").className="msg err";
   }
 }
 $("login").addEventListener("submit",e=>{e.preventDefault();senha=$("senha").value;load()});
+document.querySelectorAll("[data-t]").forEach(b=>b.addEventListener("click",()=>{aba=b.dataset.t;render()}));
 let pendingDelete=null;
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button[data-a]");if(!b)return;
-  if(b.dataset.a==="excluir"&&pendingDelete!==b){pendingDelete=b;b.textContent="Confirmar exclusão";return}
+  const a=b.dataset.a,id=b.dataset.id;
+  if(a==="abrir-recusa"){abrirRecusa=id;render();const tx=$("motivo-"+id);tx&&tx.focus();return}
+  if(a==="fechar-recusa"){abrirRecusa=null;render();return}
+  if(a==="motivo"){const tx=$("motivo-"+id);tx.value=MOTIVOS[+b.dataset.m];tx.focus();return}
+  if(a==="ver-retorno"){mostrarRetorno.add(id);render();return}
+  if(a==="copiar"){const tx=$("ret-"+id);try{await navigator.clipboard.writeText(tx.value);b.textContent="Copiada!"}catch{tx.select();b.textContent="Selecionada: use Ctrl+C"}return}
+  if(a==="excluir"&&pendingDelete!==b){pendingDelete=b;b.textContent="Confirmar exclusão";return}
+  const body={acao:a,id};
+  if(a==="recusar"){body.motivo=($("motivo-"+id)||{}).value||"";if(body.motivo.trim().length<5){$("motivo-"+id).focus();b.textContent="Escreva o motivo primeiro";return}}
   b.disabled=true;
-  try{await api("POST",{acao:b.dataset.a,id:b.dataset.id});await load()}catch(err){b.disabled=false;b.textContent=err.message}
+  try{
+    await api("POST",body);
+    if(a==="recusar"||a==="aprovar"){abrirRecusa=null;mostrarRetorno.add(id);aba=a==="recusar"?"recusado":"aprovado"}
+    await load();
+    const c=document.querySelector(`[data-card="${id}"]`);c&&c.scrollIntoView({block:"center"});
+  }catch(err){b.disabled=false;b.textContent=err.message}
+});
+// Mantém os links de envio com o texto que estiver na caixa, mesmo depois de editado.
+document.addEventListener("input",e=>{
+  const tx=e.target;if(!tx.id||!tx.id.startsWith("ret-"))return;
+  tx.closest(".retorno").querySelectorAll("a[data-canal]").forEach(a=>{
+    a.href=a.dataset.canal==="wa"?`https://wa.me/${a.dataset.dest}?text=${encodeURIComponent(tx.value)}`
+      :`mailto:${encodeURIComponent(a.dataset.dest)}?subject=${encodeURIComponent("Cadastro no Registra Terreiro")}&body=${encodeURIComponent(tx.value)}`;
+  });
 });
 if(senha)load();
 </script>

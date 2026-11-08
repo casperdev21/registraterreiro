@@ -1,4 +1,4 @@
-import { getSql, closeSql, ensureSchema, send, readBody, isAdmin } from "./_db.js";
+import { getSql, closeSql, ensureSchema, send, readBody, isAdmin, clip } from "./_db.js";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -15,9 +15,14 @@ export default async function handler(req, res) {
       return send(res, 200, { terreiros, solicitacoes });
     }
     if (req.method === "POST") {
-      const { acao, id } = await readBody(req);
+      const { acao, id, motivo } = await readBody(req);
       if (!UUID.test(String(id || ""))) return send(res, 400, { erro: "Registro inválido." });
-      if (acao === "aprovar") await db`update registra.terreiros set status = 'aprovado', aprovado_em = now() where id = ${id}`;
+      if (acao === "aprovar") await db`update registra.terreiros set status = 'aprovado', aprovado_em = now(), avaliado_em = now(), motivo = null where id = ${id}`;
+      else if (acao === "recusar") {
+        const m = clip(motivo, 600);
+        if (m.length < 5) return send(res, 400, { erro: "Escreva o motivo da recusa para o cadastrante." });
+        await db`update registra.terreiros set status = 'recusado', motivo = ${m}, avaliado_em = now() where id = ${id}`;
+      }
       else if (acao === "ocultar") await db`update registra.terreiros set status = 'pendente' where id = ${id}`;
       else if (acao === "excluir") await db`delete from registra.terreiros where id = ${id}`;
       else if (acao === "resolver") await db`update registra.solicitacoes set resolvida = true where id = ${id}`;

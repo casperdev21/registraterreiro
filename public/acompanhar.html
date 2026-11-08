@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Acompanhar cadastro · Registra Terreiro</title>
+<meta name="theme-color" content="#1E3A2A">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/estilo.css">
+<style>
+.track{padding-block:56px 72px;display:flex;flex-direction:column;gap:22px;max-width:640px}
+.track h1{font-size:clamp(34px,5vw,48px)}
+.result{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.result h2{font-size:26px}
+.badge{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:999px}
+.badge.pendente{background:#FBF0D9;color:var(--eyebrow)}
+.badge.aprovado{background:var(--ok-bg);color:var(--ok)}
+.badge.recusado{background:#F8E3E1;color:var(--danger)}
+.motivo{background:var(--soft);border-radius:12px;padding:14px 16px;margin:0;white-space:pre-line}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" aria-label="Registra Terreiro, página inicial">
+    <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+      <circle cx="22" cy="22" r="15" fill="none" stroke="#D3D5C8" stroke-width="1.5"/>
+      <circle cx="22" cy="6" r="3.6" fill="#2B5A3E"/><circle cx="33.3" cy="10.7" r="3.6" fill="#D99A2B"/>
+      <circle cx="38" cy="22" r="3.6" fill="#FFFFFF" stroke="#B9BCAE"/><circle cx="33.3" cy="33.3" r="3.6" fill="#B3261E"/>
+      <circle cx="22" cy="38" r="3.6" fill="#2B5A3E"/><circle cx="10.7" cy="33.3" r="3.6" fill="#D99A2B"/>
+      <circle cx="6" cy="22" r="3.6" fill="#FFFFFF" stroke="#B9BCAE"/><circle cx="10.7" cy="10.7" r="3.6" fill="#1E3A2A"/>
+      <circle cx="22" cy="22" r="5" fill="#D99A2B"/>
+    </svg>
+    <span>Registra Terreiro</span>
+  </a>
+  <nav class="nav" aria-label="Principal">
+    <a href="/#casas">Terreiros</a>
+    <a href="/mapa.html">Mapa</a>
+    <a class="cta" href="/#cadastrar">Cadastrar minha casa</a>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section class="track">
+    <p class="eyebrow">Acompanhar cadastro</p>
+    <h1>Como está o cadastro da sua casa?</h1>
+    <p class="lede">Digite o protocolo que apareceu quando você enviou o cadastro.</p>
+    <form class="search" id="f" role="search">
+      <label class="sr" for="p">Protocolo</label>
+      <input id="p" placeholder="RT-XXXXXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14">
+      <button class="btn btn-accent" type="submit">Consultar</button>
+    </form>
+    <p class="msg" id="msg" role="status"></p>
+    <div id="res"></div>
+  </section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <strong>Registra Terreiro</strong>
+  <span>Diretório colaborativo de casas de Umbanda e matriz africana.</span>
+</div></footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const data=d=>d?new Date(d).toLocaleDateString("pt-BR"):"";
+const TXT={
+  pendente:{rotulo:"Em análise",texto:"Recebemos o cadastro e ele está na fila de revisão. Assim que for analisado, você recebe retorno pelo contato informado."},
+  aprovado:{rotulo:"Aprovado",texto:"A casa já aparece na lista, no mapa e na agenda de giras do Registra Terreiro."},
+  recusado:{rotulo:"Não aprovado",texto:"O cadastro não foi aprovado desta vez. Veja o motivo abaixo. Se for algo que dá para corrigir, é só enviar um novo cadastro com os ajustes."}
+};
+async function consultar(cod){
+  $("res").innerHTML="";$("msg").className="msg";$("msg").textContent="Consultando…";
+  try{
+    const r=await fetch("/api/status?protocolo="+encodeURIComponent(cod));
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.erro||"Não foi possível consultar agora.");
+    const t=TXT[j.status]||TXT.pendente;
+    $("msg").textContent="";
+    $("res").innerHTML=`<article class="result">
+      <span class="badge ${esc(j.status)}">${t.rotulo}</span>
+      <h2>${esc(j.nome)}</h2>
+      <p class="meta">Enviado em ${data(j.criado_em)}${j.avaliado_em?` · Analisado em ${data(j.avaliado_em)}`:""}</p>
+      <p style="margin:0">${t.texto}</p>
+      ${j.status==="recusado"&&j.motivo?`<p class="motivo"><strong>Motivo:</strong> ${esc(j.motivo)}</p><a class="btn btn-brand" href="/#cadastrar" style="align-self:flex-start">Enviar novo cadastro</a>`:""}
+      ${j.status==="aprovado"?`<a class="btn btn-brand" href="/#casas" style="align-self:flex-start">Ver a lista de casas</a>`:""}
+    </article>`;
+  }catch(e){$("msg").className="msg err";$("msg").textContent=e.message}
+}
+$("f").addEventListener("submit",e=>{e.preventDefault();const v=$("p").value.trim();if(v)consultar(v)});
+try{const p0=new URLSearchParams(location.search).get("p");if(p0){$("p").value=p0;consultar(p0)}}catch{}
+</script>
+</body>
+</html>

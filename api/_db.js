@@ -55,6 +55,12 @@ export async function ensureSchema(db) {
         resolvida boolean not null default false,
         criado_em timestamptz not null default now()
       )`;
+      // Devolutiva ao cadastrante: contato privado, protocolo e motivo da recusa.
+      await db`alter table registra.terreiros add column if not exists contato_responsavel text`;
+      await db`alter table registra.terreiros add column if not exists protocolo text`;
+      await db`alter table registra.terreiros add column if not exists motivo text`;
+      await db`alter table registra.terreiros add column if not exists avaliado_em timestamptz`;
+      await db`create unique index if not exists terreiros_protocolo_idx on registra.terreiros (protocolo)`;
     })().catch((e) => { ready = null; throw e; });
   }
   return ready;
@@ -85,3 +91,13 @@ export const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN 
 export const TRADICOES = ["Umbanda", "Umbanda Branca", "Umbanda Esotérica", "Umbandomblé", "Omolocô", "Candomblé", "Quimbanda", "Outra"];
 
 export const clip = (v, n) => (v == null ? "" : String(v).trim().slice(0, n));
+
+// Protocolo legível e difícil de adivinhar: RT- + 8 caracteres sem letras ambíguas (0/O, 1/I/L).
+const ALFABETO = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+export function novoProtocolo() {
+  const bytes = crypto.randomBytes(8);
+  let s = "";
+  for (const b of bytes) s += ALFABETO[b % ALFABETO.length];
+  return "RT-" + s;
+}
+export const normalizaProtocolo = (p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^RT/, "").slice(0, 8);

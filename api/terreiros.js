@@ -1,4 +1,4 @@
-import { getSql, closeSql, ensureSchema, send, readBody, UFS, TRADICOES, clip } from "./_db.js";
+import { getSql, closeSql, ensureSchema, send, readBody, UFS, TRADICOES, clip, novoProtocolo } from "./_db.js";
 
 export default async function handler(req, res) {
   const db = getSql();
@@ -37,12 +37,15 @@ export default async function handler(req, res) {
         fone: clip(b.fone, 30),
         descricao: clip(b.descricao, 600),
       };
+      d.contato_responsavel = clip(b.contato_responsavel, 120);
       if (!d.nome) return send(res, 400, { erro: "Informe o nome da casa." });
       if (!d.cidade || !d.uf) return send(res, 400, { erro: "Informe cidade e UF." });
+      if (d.contato_responsavel.length < 6) return send(res, 400, { erro: "Informe um e-mail ou WhatsApp para darmos retorno sobre o cadastro." });
       const [{ n }] = await db`select count(*)::int as n from registra.terreiros where status = 'pendente'`;
       if (n >= 500) return send(res, 429, { erro: "Muitos cadastros aguardando análise. Tente novamente mais tarde." });
-      await db`insert into registra.terreiros ${db(d, "nome", "tradicao", "dirigente", "endereco", "bairro", "cidade", "uf", "dias", "horario", "aberta", "link", "fone", "descricao")}`;
-      return send(res, 201, { ok: true });
+      d.protocolo = novoProtocolo();
+      await db`insert into registra.terreiros ${db(d, "nome", "tradicao", "dirigente", "endereco", "bairro", "cidade", "uf", "dias", "horario", "aberta", "link", "fone", "descricao", "contato_responsavel", "protocolo")}`;
+      return send(res, 201, { ok: true, protocolo: d.protocolo });
     }
 
     res.setHeader("Allow", "GET, POST");
