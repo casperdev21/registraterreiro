@@ -31,6 +31,7 @@
   </a>
   <nav class="nav" aria-label="Principal">
     <a href="#casas">Terreiros</a>
+    <a href="/mapa.html">Mapa</a>
     <a href="#hoje">Gira hoje</a>
     <a class="cta" href="#cadastrar">Cadastrar minha casa</a>
   </nav>
@@ -233,6 +234,7 @@ async function load(){
     $("hoje-lista").innerHTML='<li class="none">Não foi possível carregar.</li>';$("count").textContent="";
   }
 }
+try{const q0=new URLSearchParams(location.search).get("q");if(q0)$("q").value=q0}catch{}
 load();
 
 function msg(el,t,err){el.textContent=t;el.className="msg"+(err?" err":" ok")}

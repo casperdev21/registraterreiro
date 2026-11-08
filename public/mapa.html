@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mapa dos terreiros · Registra Terreiro</title>
+<meta name="description" content="Mapa das casas de Umbanda e de matriz africana cadastradas no Registra Terreiro, por estado e por município.">
+<meta name="theme-color" content="#1E3A2A">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="/estilo.css">
+<style>
+.map-head{padding-block:28px 18px;display:flex;flex-direction:column;gap:8px}
+.map-head h1{font-size:clamp(32px,4.6vw,46px)}
+.stats{margin:0;color:var(--muted);font-size:15px;display:flex;flex-wrap:wrap;gap:4px 10px;font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink)}
+.stats .sep{color:var(--line2)}
+.map-shell{display:flex;flex-wrap:wrap;gap:16px;padding-bottom:48px;align-items:stretch}
+.side{flex:1 1 260px;max-width:100%;min-width:0;display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.panel h2{font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--eyebrow);margin:0 0 8px}
+.layers{display:flex;flex-direction:column;gap:4px}
+.layer{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:inherit;font-size:15px;font-weight:500;padding:9px 12px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--ink);cursor:pointer}
+.layer:hover{background:var(--soft)}
+.layer[aria-pressed="true"]{background:var(--deep);color:#fff}
+.layer .n{font-size:13px;font-variant-numeric:tabular-nums;opacity:.8}
+.map-wrap{flex:999 1 560px;min-width:0;position:relative}
+#map{height:min(72vh,680px);min-height:420px;border-radius:18px;border:1px solid var(--line);background:#EEF0E6;z-index:0}
+.crumb{position:absolute;top:12px;left:56px;z-index:500;display:flex;gap:8px;align-items:center}
+.crumb button{background:var(--surface);border:1px solid var(--line2);box-shadow:0 2px 8px rgba(27,34,25,.12);font-size:14px;padding:8px 12px}
+.crumb span{background:var(--deep);color:#fff;font-weight:600;font-size:14px;padding:8px 12px;border-radius:10px}
+.legend{position:absolute;right:12px;bottom:28px;z-index:500;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 4px 14px rgba(27,34,25,.12);font-size:13px;min-width:170px}
+.legend h3{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.legend ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.legend li{display:flex;gap:8px;align-items:center}
+.legend i{width:18px;height:12px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.08)}
+.hint{margin:0;font-size:14px;color:var(--muted)}
+.casas-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;max-height:320px;overflow:auto}
+.casas-list li{border-top:1px solid var(--line);padding-top:10px}
+.casas-list li:first-child{border-top:0;padding-top:0}
+.casas-list b{font-family:var(--display);font-weight:400;font-size:18px;color:var(--deep);display:block}
+.casas-list span{font-size:13px;color:var(--muted)}
+.leaflet-tooltip.rt-tip{background:var(--deep);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-family:var(--body);font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.leaflet-tooltip.rt-tip::before{display:none}
+.rt-tip strong{display:block;font-size:14px}
+.leaflet-container{font-family:var(--body)}
+@media (max-width:640px){.legend{right:8px;bottom:22px;min-width:0;padding:10px}.crumb{left:52px}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" aria-label="Registra Terreiro, página inicial">
+    <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+      <circle cx="22" cy="22" r="15" fill="none" stroke="#D3D5C8" stroke-width="1.5"/>
+      <circle cx="22" cy="6" r="3.6" fill="#2B5A3E"/><circle cx="33.3" cy="10.7" r="3.6" fill="#D99A2B"/>
+      <circle cx="38" cy="22" r="3.6" fill="#FFFFFF" stroke="#B9BCAE"/><circle cx="33.3" cy="33.3" r="3.6" fill="#B3261E"/>
+      <circle cx="22" cy="38" r="3.6" fill="#2B5A3E"/><circle cx="10.7" cy="33.3" r="3.6" fill="#D99A2B"/>
+      <circle cx="6" cy="22" r="3.6" fill="#FFFFFF" stroke="#B9BCAE"/><circle cx="10.7" cy="10.7" r="3.6" fill="#1E3A2A"/>
+      <circle cx="22" cy="22" r="5" fill="#D99A2B"/>
+    </svg>
+    <span>Registra Terreiro</span>
+  </a>
+  <nav class="nav" aria-label="Principal">
+    <a href="/#casas">Terreiros</a>
+    <a href="/mapa.html" aria-current="page">Mapa</a>
+    <a href="/#hoje">Gira hoje</a>
+    <a class="cta" href="/#cadastrar">Cadastrar minha casa</a>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section class="map-head">
+    <p class="eyebrow">Mapa</p>
+    <h1>Terreiros no Brasil</h1>
+    <p class="stats" id="stats">Carregando…</p>
+  </section>
+
+  <div class="map-shell">
+    <aside class="side">
+      <div class="panel">
+        <h2>Casas</h2>
+        <div class="layers" role="group" aria-label="Camada do mapa">
+          <button type="button" class="layer" data-l="total" aria-pressed="true">Todas as casas <span class="n" data-n="total"></span></button>
+          <button type="button" class="layer" data-l="aberta" aria-pressed="false">Gira aberta ao público <span class="n" data-n="aberta"></span></button>
+          <button type="button" class="layer" data-l="hoje" aria-pressed="false">Gira hoje <span class="n" data-n="hoje"></span></button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Tradição</h2>
+        <div class="layers" role="group" aria-label="Camada do mapa por tradição">
+          <button type="button" class="layer" data-l="umbanda" aria-pressed="false">Umbanda <span class="n" data-n="umbanda"></span></button>
+          <button type="button" class="layer" data-l="candomble" aria-pressed="false">Candomblé <span class="n" data-n="candomble"></span></button>
+          <button type="button" class="layer" data-l="outras" aria-pressed="false">Outras tradições <span class="n" data-n="outras"></span></button>
+        </div>
+      </div>
+      <div class="panel" id="detalhe">
+        <h2 id="det-titulo">Como usar</h2>
+        <div id="det-corpo"><p class="hint">Passe o mouse sobre um estado para ver quantas casas ele tem. Clique para ver os municípios.</p></div>
+      </div>
+    </aside>
+
+    <div class="map-wrap">
+      <div id="map" role="region" aria-label="Mapa de terreiros por região"></div>
+      <div class="crumb" id="crumb" hidden><button type="button" id="voltar">← Brasil</button><span id="crumb-uf"></span></div>
+      <div class="legend" id="legend" aria-live="polite"></div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <strong>Registra Terreiro</strong>
+  <span>Malhas territoriais: IBGE. Contagens: cadastros aprovados no site.</span>
+</div></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const UF={RO:[11,"Rondônia"],AC:[12,"Acre"],AM:[13,"Amazonas"],RR:[14,"Roraima"],PA:[15,"Pará"],AP:[16,"Amapá"],TO:[17,"Tocantins"],MA:[21,"Maranhão"],PI:[22,"Piauí"],CE:[23,"Ceará"],RN:[24,"Rio Grande do Norte"],PB:[25,"Paraíba"],PE:[26,"Pernambuco"],AL:[27,"Alagoas"],SE:[28,"Sergipe"],BA:[29,"Bahia"],MG:[31,"Minas Gerais"],ES:[32,"Espírito Santo"],RJ:[33,"Rio de Janeiro"],SP:[35,"São Paulo"],PR:[41,"Paraná"],SC:[42,"Santa Catarina"],RS:[43,"Rio Grande do Sul"],MS:[50,"Mato Grosso do Sul"],MT:[51,"Mato Grosso"],GO:[52,"Goiás"],DF:[53,"Distrito Federal"]};
+const SIGLA=Object.fromEntries(Object.entries(UF).map(([s,[c]])=>[String(c),s]));
+const IBGE="https://servicodados.ibge.gov.br/api";
+const HOJE=new Date().getDay();
+const LAYERS={
+  total:{nome:"Todas as casas",f:()=>true},
+  aberta:{nome:"Gira aberta ao público",f:r=>!!r.aberta},
+  hoje:{nome:"Gira hoje",f:r=>(r.dias||[]).includes(HOJE)},
+  umbanda:{nome:"Umbanda",f:r=>/umband/i.test(r.tradicao||"")},
+  candomble:{nome:"Candomblé",f:r=>/candombl/i.test(r.tradicao||"")},
+  outras:{nome:"Outras tradições",f:r=>!/umband|candombl/i.test(r.tradicao||"")}
+};
+// Escala: do âmbar claro ao verde-mata profundo
+const CLASSES=[{min:1,max:1,c:"#F3DFAE"},{min:2,max:3,c:"#E3B65C"},{min:4,max:9,c:"#C98A1E"},{min:10,max:24,c:"#6F8F4E"},{min:25,max:49,c:"#2B5A3E"},{min:50,max:Infinity,c:"#1E3A2A"}];
+const VAZIO="#FFFFFF";
+const cor=n=>{if(!n)return VAZIO;const k=CLASSES.find(k=>n>=k.min&&n<=k.max);return k?k.c:VAZIO};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const fmt=n=>n.toLocaleString("pt-BR");
+
+let rows=[], layer="total", estado=null, geoLayer=null, cacheUF={};
+const map=L.map("map",{zoomSnap:.25,minZoom:3,maxZoom:12,scrollWheelZoom:false}).setView([-15.5,-53],4);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · Malhas: IBGE',subdomains:"abcd",maxZoom:19}).addTo(map);
+map.on("focus",()=>map.scrollWheelZoom.enable());map.on("blur",()=>map.scrollWheelZoom.disable());
+
+function filtradas(){return rows.filter(LAYERS[layer].f)}
+function contaPorUF(lista){const m={};lista.forEach(r=>{if(r.uf)m[r.uf]=(m[r.uf]||0)+1});return m}
+function contaPorCidade(lista,uf){const m={};lista.filter(r=>r.uf===uf).forEach(r=>{const k=norm(r.cidade);m[k]=(m[k]||[]);m[k].push(r)});return m}
+
+function legenda(){
+  $("legend").innerHTML=`<h3>${esc(LAYERS[layer].nome)}</h3><ul>${CLASSES.map(k=>`<li><i style="background:${k.c}"></i>${k.max===Infinity?`${k.min} ou mais`:k.min===k.max?`${k.min} casa`:`${k.min} a ${k.max} casas`}</li>`).join("")}<li><i style="background:${VAZIO}"></i>sem cadastro</li></ul>`;
+}
+function stats(){
+  const l=filtradas();
+  const munis=new Set(l.map(r=>r.uf+"|"+norm(r.cidade)));const ufs=new Set(l.map(r=>r.uf));
+  $("stats").innerHTML=`<span><b>${fmt(l.length)}</b> ${l.length===1?"casa":"casas"}</span><span class="sep">|</span><span><b>${fmt(munis.size)}</b> ${munis.size===1?"município":"municípios"}</span><span class="sep">|</span><span><b>${fmt(ufs.size)}</b> ${ufs.size===1?"estado":"estados"}</span><span class="sep">|</span><span>Fonte: cadastros aprovados no Registra Terreiro</span>`;
+  document.querySelectorAll("[data-n]").forEach(el=>{el.textContent=fmt(rows.filter(LAYERS[el.dataset.n].f).length)});
+}
+const estilo=n=>({fillColor:cor(n),fillOpacity:n?.88:.55,color:"#9AA394",weight:.8});
+const tip=(t,n,extra)=>`<strong>${esc(t)}</strong>${n?`${fmt(n)} ${n===1?"casa":"casas"}`:"Sem cadastro ainda"}${extra||""}`;
+
+function detalheUF(sigla,n){
+  $("det-titulo").textContent=UF[sigla][1];
+  $("det-corpo").innerHTML=`<p class="hint">${n?`${fmt(n)} ${n===1?"casa cadastrada":"casas cadastradas"} em ${esc(LAYERS[layer].nome.toLowerCase())}.`:"Nenhuma casa cadastrada nesta camada."} Clique no estado para ver os municípios.</p>`;
+}
+function detalheMuni(nome,lista){
+  $("det-titulo").textContent=nome;
+  $("det-corpo").innerHTML=lista&&lista.length?`<ul class="casas-list">${lista.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")).map(r=>`<li><b>${esc(r.nome)}</b><span>${esc([r.tradicao,r.bairro].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul><p class="hint" style="margin-top:12px"><a href="/?q=${encodeURIComponent(nome)}#casas">Ver na lista completa →</a></p>`
+    :`<p class="hint">Nenhuma casa cadastrada aqui ainda. <a href="/#cadastrar">Cadastre a sua.</a></p>`;
+}
+
+let brGeo=null;
+async function desenharBrasil(){
+  estado=null;$("crumb").hidden=true;
+  if(!brGeo){brGeo=await (await fetch(`${IBGE}/v3/malhas/paises/BR?formato=application/vnd.geo%2Bjson&intrarregiao=UF&qualidade=minima`)).json()}
+  const cont=contaPorUF(filtradas());
+  if(geoLayer)map.removeLayer(geoLayer);
+  geoLayer=L.geoJSON(brGeo,{
+    style:f=>estilo(cont[SIGLA[f.properties.codarea]]||0),
+    onEachFeature:(f,lyr)=>{const s=SIGLA[f.properties.codarea];const n=cont[s]||0;
+      lyr.bindTooltip(tip(UF[s][1],n),{sticky:true,className:"rt-tip"});
+      lyr.on({mouseover:e=>{e.target.setStyle({weight:2,color:"#1E3A2A"});e.target.bringToFront();detalheUF(s,n)},mouseout:e=>geoLayer.resetStyle(e.target),click:()=>abrirEstado(s)});
+      lyr.on("keypress",e=>{if(e.originalEvent.key==="Enter")abrirEstado(s)});}
+  }).addTo(map);
+  map.fitBounds(geoLayer.getBounds(),{padding:[10,10]});
+  $("det-titulo").textContent="Como usar";
+  $("det-corpo").innerHTML='<p class="hint">Passe o mouse sobre um estado para ver quantas casas ele tem. Clique para ver os municípios.</p>';
+}
+async function abrirEstado(s){
+  estado=s;$("crumb").hidden=false;$("crumb-uf").textContent=UF[s][1];
+  $("det-titulo").textContent=UF[s][1];$("det-corpo").innerHTML='<p class="hint">Carregando municípios…</p>';
+  try{
+    if(!cacheUF[s]){
+      const [g,m]=await Promise.all([
+        fetch(`${IBGE}/v3/malhas/estados/${s}?formato=application/vnd.geo%2Bjson&intrarregiao=municipio&qualidade=minima`).then(r=>r.json()),
+        fetch(`${IBGE}/v1/localidades/estados/${s}/municipios`).then(r=>r.json())]);
+      cacheUF[s]={geo:g,nomes:Object.fromEntries(m.map(x=>[String(x.id),x.nome]))};
+    }
+    desenharEstado();
+  }catch{$("det-corpo").innerHTML='<p class="hint">Não foi possível carregar o mapa deste estado agora. Tente de novo.</p>'}
+}
+function desenharEstado(){
+  const {geo,nomes}=cacheUF[estado];
+  const porCidade=contaPorCidade(filtradas(),estado);
+  if(geoLayer)map.removeLayer(geoLayer);
+  geoLayer=L.geoJSON(geo,{
+    style:f=>estilo((porCidade[norm(nomes[f.properties.codarea])]||[]).length),
+    onEachFeature:(f,lyr)=>{const nome=nomes[f.properties.codarea]||"Município";const lista=porCidade[norm(nome)]||[];
+      const extra=lista.length?`<br>${lista.slice(0,3).map(r=>esc(r.nome)).join("<br>")}${lista.length>3?"<br>…":""}`:"";
+      lyr.bindTooltip(tip(nome,lista.length,extra),{sticky:true,className:"rt-tip"});
+      lyr.on({mouseover:e=>{e.target.setStyle({weight:2,color:"#1E3A2A"});e.target.bringToFront()},mouseout:e=>geoLayer.resetStyle(e.target),click:()=>detalheMuni(nome,lista)});}
+  }).addTo(map);
+  map.fitBounds(geoLayer.getBounds(),{padding:[10,10]});
+  const total=Object.values(porCidade).reduce((a,l)=>a+l.length,0);
+  $("det-titulo").textContent=UF[estado][1];
+  $("det-corpo").innerHTML=`<p class="hint">${total?`${fmt(total)} ${total===1?"casa":"casas"} em ${fmt(Object.keys(porCidade).length)} ${Object.keys(porCidade).length===1?"município":"municípios"}.`:"Nenhuma casa cadastrada neste estado nesta camada."} Clique num município para ver as casas.</p>`;
+}
+function redesenhar(){legenda();stats();estado&&cacheUF[estado]?desenharEstado():desenharBrasil()}
+document.querySelectorAll(".layer").forEach(b=>b.addEventListener("click",()=>{
+  layer=b.dataset.l;document.querySelectorAll(".layer").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));redesenhar();
+}));
+$("voltar").addEventListener("click",desenharBrasil);
+
+(async()=>{
+  legenda();
+  try{const r=await fetch("/api/terreiros");if(r.ok)rows=await r.json()}catch{}
+  stats();
+  try{await desenharBrasil()}catch{$("det-corpo").innerHTML='<p class="hint">Não foi possível carregar o mapa agora. Recarregue a página.</p>'}
+})();
+</script>
+</body>
+</html>
